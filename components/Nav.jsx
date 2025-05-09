@@ -3,7 +3,7 @@ import React from 'react';
 import { View, TouchableWithoutFeedback, Image, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import Gallery from './GalleryList'
 import Memories from './Memories'
 
@@ -32,20 +32,21 @@ export default function Nav() {
               return (
                 <View style={styles.centerButton}>
                   <View style={styles.qrisButton}>
+                    <Ionicons name='images' size={30} color={color} />
                   </View>
                 </View>
               );
             }
 
             let iconName = 'home';
-            if (route.name === 'ToDo') iconName = 'checklist';
-            else if (route.name === 'Couple') iconName = 'favorite';
-            else if (route.name === 'Profile') iconName = 'person';
+            if (route.name === 'Dump') iconName = 'earth';
+            else if (route.name === 'Couple') iconName = 'heart';
+            else if (route.name === 'Profile') iconName = 'id-card';
 
-            return <MaterialIcons name={iconName} size={size} color={color} />;
+            return <Ionicons name={iconName} size={size} color={color} />;
           },
           tabBarShowLabel: true,
-          tabBarActiveTintColor: 'pink',
+          tabBarActiveTintColor: route.name !== 'Gallery' ? 'pink' : 'white',
           tabBarInactiveTintColor: 'gray',
           tabBarStyle: {
             height: 70,
@@ -55,7 +56,7 @@ export default function Nav() {
         })}
       >
         <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="ToDo" component={TodoScreen} />
+        <Tab.Screen name="Dump" component={TodoScreen} />
         <Tab.Screen
           name="Gallery"
           component={GalleryScreen}

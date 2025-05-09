@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, getDocs, deleteDoc, doc, addDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebaseConfig';
 
 export default function GalleryList() {
@@ -273,6 +272,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 120,
     resizeMode: 'cover',
+  },
+  imageDetails: {
+    width: '100%',
+    height: 120,
+    resizeMode: 'contain',
   },
   textContainer: {
     padding: 12,
