@@ -12,7 +12,7 @@ const HeaderBox = () => {
           </View>
           <View style={styles.helloContainer}>
             <View style={styles.helloFlex}>
-                <Text style={styles.helloTextH}>Hi,</Text>
+                <Text style={styles.helloTextH}>I Love,</Text>
                 <Text style={styles.helloTextP}>Mira</Text>
             </View>
           </View>

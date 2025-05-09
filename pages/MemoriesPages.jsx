@@ -1,12 +1,11 @@
 import { StatusBar, StyleSheet, Text, View } from 'react-native';
-import HeaderBox from './components/headerBox';
-import Nav from './components/Nav'
+import GalleryList from '../components/GalleryList'
 
-export default function App() {
+export default function MemoriesPages() {
   return (
     <View style={styles.section}>
       <View style={styles.sectionFlex}>
-      <Nav />
+      <GalleryList />
       <StatusBar style="light" />
       </View>
     </View>
