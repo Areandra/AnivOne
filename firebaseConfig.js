@@ -21,5 +21,4 @@ const storage = getStorage(app);
 // const auth = initializeAuth(app, {
 //   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
 // });
-
 export { db, storage };
