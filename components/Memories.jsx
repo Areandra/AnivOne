@@ -10,9 +10,13 @@ import Animated, {
 const { width, height } = Dimensions.get('window');
 
 const data = [
-  { id: 1, img: require('../assets/m1q2.png') },
-  { id: 2, img: require('../assets/m1q2.png') },
-  { id: 3, img: require('../assets/m1q2.png') },
+  { id: 1, img: 'https://res.cloudinary.com/dpvcu9q88/image/upload/v1746838071/Beige_and_Photo-centric_with_Minimalist_Playful_Style_Photo_Collage_Memorie_20250510_084339_0000_j53nin.png' },
+  { id: 2, img: 'https://res.cloudinary.com/dpvcu9q88/image/upload/v1746838072/Beige_and_Photo-centric_with_Minimalist_Playful_Style_Photo_Collage_Memorie_20250510_084339_0001_dguqqx.png' },
+  { id: 3, img: 'https://res.cloudinary.com/dpvcu9q88/image/upload/v1746838119/Beige_and_Photo-centric_with_Minimalist_Playful_Style_Photo_Collage_Memorie_20250510_084339_0002_vhscze.png' },
+  { id: 4, img: 'https://res.cloudinary.com/dpvcu9q88/image/upload/v1746838071/Beige_and_Photo-centric_with_Minimalist_Playful_Style_Photo_Collage_Memorie_20250510_084339_0004_zcbold.png' },
+  { id: 5, img: 'https://res.cloudinary.com/dpvcu9q88/image/upload/v1746838071/Beige_and_Photo-centric_with_Minimalist_Playful_Style_Photo_Collage_Memorie_20250510_084339_0005_azmkcw.png' },
+  { id: 6, img: 'https://res.cloudinary.com/dpvcu9q88/image/upload/v1746838071/Beige_and_Photo-centric_with_Minimalist_Playful_Style_Photo_Collage_Memorie_20250510_084339_0003_jcfukl.png' },
+  { id: 7, img: 'https://res.cloudinary.com/dpvcu9q88/image/upload/v1746843530/Beige_and_Photo-centric_with_Minimalist_Playful_Style_Photo_Collage_Memorie_20250510_101643_0000_uht9hw.png' },
 ];
 
 export default function CanvaLayout() {
@@ -50,7 +54,7 @@ export default function CanvaLayout() {
           return (
             <Animated.View style={[styles.slide, animatedStyle]}>
               <Image
-                source={item.img}
+                source={{ uri: item.img }}
                 style={styles.image}
                 resizeMode="contain"
               />
@@ -67,7 +71,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#ede7e1',
   },
   slide: {
     width: width,

@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View, Text, FlatList, Image, StyleSheet, TouchableOpacity,
-  Modal, ActivityIndicator, TextInput, ScrollView
-} from 'react-native';
+import { Dimensions, View, Text, FlatList, Image, StyleSheet, TouchableOpacity,
+  Modal, ActivityIndicator, TextInput, ScrollView, Button, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, getDocs, deleteDoc, doc, addDoc } from 'firebase/firestore';
 import { db, storage } from '../firebaseConfig';
+import { sha1 } from 'js-sha1';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+const CLOUD_NAME = 'dpvcu9q88';
+const UPLOAD_PRESET = 'anivone';
+const API_KEY = '558516275557451';
+const API_SECRET = '8Xn1fh91OnG3-hEc3h_kRkTsJ8k';
 
 export default function GalleryList() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [tempPublicId, setTempPublicId] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     date: '',
@@ -38,24 +44,25 @@ export default function GalleryList() {
   const CLOUD_NAME = 'dpvcu9q88';
   const UPLOAD_PRESET = 'anivone';
 
-  const pickAndUploadImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1,
+const pickAndUploadImage = async () => {
+  setLoading(true);
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    quality: 1,
+  });
+
+  if (!result.canceled) {
+    const imageUri = result.assets[0].uri;
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'upload.jpg',
     });
+    formData.append('upload_preset', UPLOAD_PRESET);
 
-    if (!result.canceled) {
-      const imageUri = result.assets[0].uri;
-
-      const formData = new FormData();
-      formData.append('file', {
-        uri: imageUri,
-        type: 'image/jpeg',
-        name: 'upload.jpg',
-      });
-      formData.append('upload_preset', UPLOAD_PRESET);
-
-      try {
+    try {
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
         body: formData,
@@ -64,8 +71,10 @@ export default function GalleryList() {
       const data = await response.json();
 
       if (data.secure_url) {
-        alert('URL gambar yang di-upload: ' + data.secure_url);
-        return data.secure_url;
+        return {
+          url: data.secure_url,
+          public_id: data.public_id,
+        };
       } else {
         alert('Upload gagal: ' + JSON.stringify(data));
         return null;
@@ -74,10 +83,40 @@ export default function GalleryList() {
       console.error('Upload error:', error);
       alert('Terjadi kesalahan saat upload.');
       return null;
+    } finally {
+      setLoading(false);
     }
   }
 
   return null;
+};
+
+const deleteImageFromCloudinary = async (publicId) => {
+  setLoading(true);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${API_SECRET}`;
+  const signature = sha1(stringToSign);
+
+  const formData = new FormData();
+  formData.append('public_id', publicId);
+  formData.append('api_key', API_KEY);
+  formData.append('timestamp', timestamp);
+  formData.append('signature', signature);
+
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/destroy`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+    console.log('Delete result:', data);
+    return data.result === 'ok';
+  } catch (err) {
+    console.error('Delete error:', err);
+    return false;
+  } finally {
+    setLoading(false);
+  }
 };
 
   const handleAdd = async () => {
@@ -88,22 +127,29 @@ export default function GalleryList() {
     try {
       const docRef = await addDoc(collection(db, 'gallery'), formData);
       setCategories(prev => [...prev, { id: docRef.id, ...formData }]);
+      setTempPublicId(null);
       setAddModalVisible(false);
       setFormData({ name: '', date: '', location: '', image: '', description: '' });
     } catch (error) {
       console.error('Gagal menambahkan item:', error);
-    }
+    } 
   };
 
   const handleDelete = async (id) => {
-    try {
-      await deleteDoc(doc(db, 'gallery', id));
-      setCategories(prev => prev.filter(item => item.id !== id));
-      setSelectedItem(null);
-    } catch (error) {
-      console.error('Gagal menghapus item:', error);
+  try {
+    const item = categories.find(c => c.id === id);
+    if (item?.public_id) {
+      await deleteImageFromCloudinary(item.public_id);
     }
-  };
+    await deleteDoc(doc(db, 'gallery', id));
+    setCategories(prev => prev.filter(item => item.id !== id));
+    setSelectedItem(null);
+  } catch (error) {
+    console.error('Gagal menghapus item:', error);
+    }
+  }
+
+  const sortedData = categories.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const renderItem = ({ item }) => (
     <TouchableOpacity style={styles.card} onPress={() => setSelectedItem(item)}>
@@ -114,20 +160,90 @@ export default function GalleryList() {
       </View>
     </TouchableOpacity>
   );
+  
+  const cancelAddModal = async () => {
+    if (tempPublicId) {
+      await deleteImageFromCloudinary(tempPublicId);
+      setTempPublicId(null);
+    }
+    setFormData({ name: '', date: '', location: '', image: '', description: '', public_id: '' });
+    setAddModalVisible(false);
+  };
 
-  if (loading) {
+  const DateInput = () => {
+    const [showPicker, setShowPicker] = useState(false);
+
+    const handleDateChange = (event, selectedDate) => {
+      if (selectedDate) {
+        const formattedDate = selectedDate.toISOString().split('T')[0]; // YYYY-MM-DD
+        setFormData({ ...formData, date: formattedDate });
+      }
+      setShowPicker(false); // Tutup picker setelah dipilih
+    };
+
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" />
+      <View>
+        <TextInput
+          placeholder="Tanggal"
+          placeholderTextColor='pink'
+          style={styles.input}
+          value={formData.date}
+          onTouchStart={() => setShowPicker(true)}
+        />
+        {showPicker && (
+          <DateTimePicker
+            value={formData.date ? new Date(formData.date) : new Date()}
+            mode="date"
+            display="default"
+            onChange={handleDateChange}
+          />
+        )}
       </View>
     );
-  }
+  };
+  
+  const AutoSizedImage = ({ uri, style }) => {
+    const [dimensions, setDimensions] = useState(null);
+    
+    useEffect(() => {
+      Image.getSize(uri, (width, height) => {
+        const screenHeight = Dimensions.get('window').height;
+        console.log(screenHeight)
+        let imageHeight = (height * 0.445) * (screenHeight / 1000);
+        if (imageHeight > (screenHeight * 0.75)) {
+          imageHeight = imageHeight * 0.65;
+        }
+        
+        setDimensions(imageHeight)
+      },
+      (error) => console.error('Gagal dapat ukuran:', error)
+      );
+    }, [uri]);
+
+    if (!dimensions) return null; // atau bisa tampilkan loader
+    
+    return (
+      <Image
+        source={{ uri }}
+        style={[{ height: dimensions, borderRadius: 10 }, style]}
+      />
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Memories</Text>
+      <Modal
+      visible={loading}
+      transparent
+      animationType="none"
+      >
+        <View style={styles.modalBackground}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      </Modal>
+      <Text style={styles.header}>Kenangan</Text>
       <FlatList
-        data={categories}
+        data={sortedData}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         numColumns={2}
@@ -141,7 +257,7 @@ export default function GalleryList() {
       {/* Modal Detail */}
       <Modal
         visible={!!selectedItem}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setSelectedItem(null)}
       >
@@ -149,7 +265,7 @@ export default function GalleryList() {
           <View style={styles.modalContent}>
             {selectedItem && (
               <>
-                <Image source={{ uri: selectedItem.image }} style={styles.modalImage} />
+                <AutoSizedImage uri={selectedItem.image} style={styles.modalImage} />
                 <Text style={styles.title}>{selectedItem.name}</Text>
                 <Text style={styles.subtitle}>{selectedItem.date}, {selectedItem.location}</Text>
                 <Text style={{ marginTop: 8 }}>{selectedItem.description || 'No description.'}</Text>
@@ -176,44 +292,52 @@ export default function GalleryList() {
       {/* Modal Tambah */}
       <Modal
         visible={addModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
-        onRequestClose={() => setAddModalVisible(false)}
+        onRequestClose={cancelAddModal}
       >
         <View style={styles.modalBackground}>
-          <ScrollView style={styles.modalContent}>
-            <Text style={styles.title}>Tambah Item</Text>
+          <View style={styles.modalContent}>
+            <Text style={[styles.title, {marginBottom:16}]}>Tambah Kenangan</Text>
 
             <TextInput
               placeholder="Nama"
+              placeholderTextColor='pink'
               style={styles.input}
               value={formData.name}
               onChangeText={(text) => setFormData({ ...formData, name: text })}
             />
-            <TextInput
-              placeholder="Tanggal"
-              style={styles.input}
-              value={formData.date}
-              onChangeText={(text) => setFormData({ ...formData, date: text })}
-            />
+            
+            <DateInput/>
+            
             <TextInput
               placeholder="Lokasi"
+              placeholderTextColor='pink'
               style={styles.input}
               value={formData.location}
               onChangeText={(text) => setFormData({ ...formData, location: text })}
             />
             <TextInput
               placeholder="Deskripsi"
+              placeholderTextColor='pink'
               style={styles.input}
               value={formData.description}
               onChangeText={(text) => setFormData({ ...formData, description: text })}
             />
 
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: '#007bff' }]}
+              style={[styles.button, { backgroundColor: '#C71585' }]}
               onPress={async () => {
-                const url = await pickAndUploadImage();
-                if (url) setFormData({ ...formData, image: url });
+                if (tempPublicId) {
+                  await deleteImageFromCloudinary(tempPublicId);
+                  setTempPublicId(null);
+                }
+                const result = await pickAndUploadImage();
+                if (result) {
+                  setTempPublicId(result.public_id);
+                  setFormData({...formData, image: result.url, public_id: result.public_id,
+                  });
+                }
               }}
             >
               <Text style={styles.buttonText}>
@@ -230,12 +354,12 @@ export default function GalleryList() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: '#ccc' }]}
-                onPress={() => setAddModalVisible(false)}
+                onPress={cancelAddModal}
               >
                 <Text style={styles.buttonText}>Batal</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </View>
       </Modal>
     </View>
@@ -246,22 +370,24 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: 40,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#ede7e1',
     flex: 1,
     width: '100%'
   },
   header: {
     marginTop: 0,
+    paddingTop: 0,
     justifyContent:'center',
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 16,
+    color: 'pink',
   },
   list: {
     paddingBottom: 100,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: 'pink',
     borderRadius: 12,
     overflow: 'hidden',
     margin: 8,
@@ -273,21 +399,17 @@ const styles = StyleSheet.create({
     height: 120,
     resizeMode: 'cover',
   },
-  imageDetails: {
-    width: '100%',
-    height: 120,
-    resizeMode: 'contain',
-  },
   textContainer: {
-    padding: 12,
+    padding: 10,
   },
   title: {
     fontSize: 16,
+    color: 'white',
     fontWeight: 'bold',
   },
   subtitle: {
-    color: '#666',
-    marginTop: 4,
+    color: 'white',
+    marginTop: 2,
   },
   fab: {
     position: 'absolute',
@@ -313,13 +435,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: 'pink',
     borderRadius: 12,
     padding: 20,
   },
   modalImage: {
-    width: '100%',
-    height: 200,
+    width: 'auto',
     resizeMode: 'cover',
     borderRadius: 10,
     marginBottom: 16,
@@ -342,9 +463,11 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#C71585',
+    backgroundColor: 'white',
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
+    color: 'pink',
   },
 });

@@ -6,14 +6,16 @@ import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Gallery from './GalleryList'
 import Memories from './Memories'
+import HomeScreen from './Home'
+import ProfileScreen from './Profile'
 
 const Tab = createBottomTabNavigator();
 
-const HomeScreen = () => <View style={{ flex: 1, backgroundColor: '#fff' }} />;
+const Home = () => <View style={{ flex: 1, backgroundColor: '#fff' }}><HomeScreen/></View>;
 const TodoScreen = () => <View style={{ flex: 1, backgroundColor: '#fff' }} ><Memories/></View>;
 const GalleryScreen = () => <View style={{ flex: 1, backgroundColor: '#fff'}}><Gallery/></View>;
 const CoupleScreen = () => <View style={{ flex: 1, backgroundColor: '#fff' }} />;
-const ProfileScreen = () => <View style={{ flex: 1, backgroundColor: '#fff' }} />;
+const Profile = () => <View style={{ flex: 1, backgroundColor: '#fff' }} />;
 
 export default function Nav() {
   return (
